@@ -1,0 +1,4 @@
+*.bak
+D11bootloader THUMB Debug\*
+D11bootloader THUMB Release\*
+*.hzs
