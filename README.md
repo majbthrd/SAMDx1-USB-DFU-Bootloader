@@ -1,7 +1,7 @@
 USB DFU Bootloader for SAMD11 / SAMD21
 ======================================
 
-Bootloaders are a dime a dozen, but existing USB bootloaders for the Atmel/Microchip SAMDx1 all seem to be 4kBytes in size.  To spent 25% of the SAMD11's flash on the bootloader seems quite excessive.
+Bootloaders are a dime a dozen, but existing USB bootloaders for the Atmel/Microchip SAMDx1 all seem to be 4kBytes in size.  To spend 25% of the SAMD11's flash on the bootloader seems quite excessive.
 
 This bootloader is only 1kBytes and implements the industry-standard [DFU protocol](http://www.usb.org/developers/docs/devclass_docs/DFU_1.1.pdf) that is supported under multiple Operating Systems via existing tools such as [dfu-util](http://dfu-util.sourceforge.net/).
 
