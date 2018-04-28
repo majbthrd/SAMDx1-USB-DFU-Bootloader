@@ -1,15 +1,11 @@
-USB DFU Bootloader for SAMD11
-=============================
+USB DFU Bootloader for SAMD11 / SAMD21
+======================================
 
-Bootloaders are a dime a dozen, but existing USB bootloaders for the Atmel/Microchip SAMD11 all seem to be 4kBytes in size.  To spent 25% of the SAMD11's flash on the bootloader seems excessive.
+Bootloaders are a dime a dozen, but existing USB bootloaders for the Atmel/Microchip SAMDx1 all seem to be 4kBytes in size.  To spent 25% of the SAMD11's flash on the bootloader seems quite excessive.
 
 This bootloader is only 1kBytes and implements the industry-standard [DFU protocol](http://www.usb.org/developers/docs/devclass_docs/DFU_1.1.pdf) that is supported under multiple Operating Systems via existing tools such as [dfu-util](http://dfu-util.sourceforge.net/).
 
-The linker memory map of the user application must be modified to have an origin at 0x0000_0400 rather than at 0x0000_0000.  This bootloader resides at 0x0000_0000.
-
-When booting, the bootloader checks whether a GPIO pin (nominally PA15) is connected to ground.  If so, it runs the bootloader instead of the user application.
-
-When branching to the user application, the bootloader includes functionality to update the [VTOR (Vector Table Offset Register)](http://infocenter.arm.com/help/topic/com.arm.doc.dui0662a/Ciheijba.html) and update the stack pointer to suit the value in the user application's vector table.
+It is a much more space efficient alternative to the 4kB Atmel/Microchip [AN_42366](http://www.microchip.com//wwwAppNotes/AppNotes.aspx?appnote=en591491) SAM-BA Bootloader.
 
 ## Usage
 
@@ -18,6 +14,14 @@ Downloading can be accomplished with the existing [dfu-util](http://dfu-util.sou
 ```
 dfu-util -D write.bin
 ```
+
+## Specifics
+
+The linker memory map of the user application must be modified to have an origin at 0x0000_0400 rather than at 0x0000_0000.  This bootloader resides at 0x0000_0000.
+
+When booting, the bootloader checks whether a GPIO pin (nominally PA15) is connected to ground.  If so, it runs the bootloader instead of the user application.
+
+When branching to the user application, the bootloader includes functionality to update the [VTOR (Vector Table Offset Register)](http://infocenter.arm.com/help/topic/com.arm.doc.dui0662a/Ciheijba.html) and update the stack pointer to suit the value in the user application's vector table.
 
 ## Requirements for compiling
 

@@ -38,7 +38,7 @@ NOTES:
 /*- Includes ----------------------------------------------------------------*/
 #include <stdbool.h>
 #include <string.h>
-#include <samd11.h>
+#include <sam.h>
 #include "usb.h"
 #include "nvm_data.h"
 #include "usb_descriptors.h"
