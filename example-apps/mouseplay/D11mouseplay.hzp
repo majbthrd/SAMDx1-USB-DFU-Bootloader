@@ -1,5 +1,5 @@
 <!DOCTYPE CrossStudio_Project_File>
-<solution Name="D11mouseplay" target="8" version="2">
+<solution Name="Dx1mouseplay" target="8" version="2">
   <project Name="D11mouseplay">
     <configuration
       CMSIS_CORE="Yes"
@@ -31,22 +31,18 @@
       linker_output_format="bin"
       linker_section_placement_file="$(StudioDir)/targets/Cortex_M/flash_placement.xml"
       macros="DeviceLoaderFile=$(TargetsDir)/SAM_D/Loader/SAM_D11_Loader.elf;DeviceMemoryMapFile=$(TargetsDir)/SAM_D/XML/ATSAMD11D14AM_MemoryMap.xml;DeviceRegisterDefinitionFile=$(TargetsDir)/SAM_D/XML/ATSAMD11D14AM_Registers.xml;DeviceFamily=SAM D;DeviceSubFamily=SAM D11"
-      package_dependencies="Atmel_ATSAMD11-XPRO"
+      package_dependencies="SAM_D"
       project_directory=""
       project_type="Executable"
       property_groups_file_path="$(TargetsDir)/SAM_D/XML/property_groups.xml"
       target_get_partname_script="GetPartName()"
       target_match_partname_script="MatchPartName(&quot;$(Target)&quot;)"
       target_reset_script="Reset();"
+      target_script_file="$(TargetsDir)/SAM_D/Scripts/SAM_D_Target.js"
       target_trace_initialize_script="EnableTrace(&quot;$(TraceInterfaceType)&quot;)" />
     <configuration
       Name="Flash"
       arm_target_flash_loader_file_path="$(DeviceLoaderFile)" />
-    <folder Name="Script Files">
-      <file file_name="$(TargetsDir)/SAM_D/Scripts/SAM_D_Target.js">
-        <configuration Name="Common" file_type="Reset Script" />
-      </file>
-    </folder>
     <folder Name="Source Files">
       <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;asm;inc" />
       <file file_name="main.c" />
