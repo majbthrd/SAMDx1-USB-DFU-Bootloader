@@ -29,6 +29,7 @@
       linker_memory_map_file="$(DeviceMemoryMapFile)"
       linker_output_format="bin"
       linker_section_placement_file="$(StudioDir)/targets/Cortex_M/flash_placement.xml"
+      linker_section_placement_macros="FLASH_START=0x400"
       macros="DeviceLoaderFile=$(TargetsDir)/SAM_D/Loader/SAM_D11_Loader.elf;DeviceMemoryMapFile=$(TargetsDir)/SAM_D/XML/ATSAMD11D14AM_MemoryMap.xml;DeviceRegisterDefinitionFile=$(TargetsDir)/SAM_D/XML/ATSAMD11D14AM_Registers.xml;DeviceFamily=SAM D;DeviceSubFamily=SAM D11"
       package_dependencies="SAM_D"
       project_directory=""
@@ -51,9 +52,6 @@
       <file file_name="usb_cdc.c" />
       <file file_name="usb_descriptors.c" />
       <file file_name="usb_std.c" />
-    </folder>
-    <folder Name="System Files">
-      <file file_name="ATSAMD11D14AM_MemoryMap.xml" />
     </folder>
   </project>
   <configuration Name="THUMB Debug" inherited_configurations="THUMB;Debug" />
