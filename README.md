@@ -43,10 +43,10 @@ Your mileage may vary, particularly with earlier releases of OpenOCD.  (The wisd
 openocd -f interface/cmsis-dap.cfg -f target/at91samdXX.cfg -c "init; halt; at91samd bootloader 0; exit"
 ```
 
-####Step 2: program the bootloader (the file Dx1bootloader-v1_00-PA15.srec in this example)
+####Step 2: program the bootloader (the file Dx1bootloader-v1_01-PA15.srec in this example)
 
 ```
-openocd -f interface/cmsis-dap.cfg -f target/at91samdXX.cfg -c "program Dx1bootloader-v1_00-PA15.srec verify; exit"
+openocd -f interface/cmsis-dap.cfg -f target/at91samdXX.cfg -c "program Dx1bootloader-v1_01-PA15.srec verify; exit"
 ```
 
 ####Step 3: enable the BOOTPROT bits for write-protecting a 1kB bootloader
