@@ -9,10 +9,18 @@ It is a much more space efficient alternative to the 4kB Atmel/Microchip [AN_423
 
 ## Usage
 
-Downloading can be accomplished with the existing [dfu-util](http://dfu-util.sourceforge.net/) utilities:
+Downloading can be accomplished with the existing [dfu-util](http://dfu-util.sourceforge.net/) utilities.
+
+Downloading a raw binary file looks like this:
 
 ```
 dfu-util -D write.bin
+```
+
+or by using the provided dx1elf2dfu utility, one can create a .dfu file to be downloaded:
+
+```
+dfu-util -D write.dfu
 ```
 
 ## Specifics
