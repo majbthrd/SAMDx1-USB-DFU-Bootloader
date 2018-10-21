@@ -6,6 +6,10 @@
     https://github.com/majbthrd/SAMDx1-USB-DFU-Bootloader
     and thus expects the input ELF to not use the first 1024 bytes.
 
+    The bootloader expects an application length and CRC32 to be stored
+    without the user application (using unused vector table entries).  This 
+    tool calculates these quantities and inserts them into the output DFU.
+
     Permission is hereby granted, free of charge, to any person obtaining a 
     copy of this software and associated documentation files (the "Software"), 
     to deal in the Software without restriction, including without limitation 
@@ -32,6 +36,10 @@
 
 #define USB_VENDOR_ID  0x1209
 #define USB_PRODUCT_ID 0x2003
+
+static const uint32_t origin_addr = 0x400; /* origin of the application (first address available after the bootloader) */
+static const uint32_t app_len_offset = 0x10; /* reserved application vector where the application size is stored */
+static const uint32_t app_crc_offset = 0x14; /* reserved application vector where the CRC value is stored */
 
 typedef struct Elf32_Ehdr
 {
@@ -241,7 +249,7 @@ static struct memory_blob *find_blob(uint32_t address, uint32_t count, struct me
 	}
 
 	addition = malloc(sizeof(struct memory_blob));
-	memset(addition, 0, sizeof(struct memory_blob));
+	memset(addition, 0xFF, sizeof(struct memory_blob));
 
 	addition->data = malloc(count);
 	addition->address = address;
@@ -324,12 +332,72 @@ static const uint32_t crc32_table[256] =
 	0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D,
 };
 
+static const uint8_t high_lookup[256] =
+{
+	  0,  65, 195, 130, 134, 199,  69,   4,  77,  12, 142, 207, 203, 138,   8,  73,
+	154, 219,  89,  24,  28,  93, 223, 158, 215, 150,  20,  85,  81,  16, 146, 211,
+	117,  52, 182, 247, 243, 178,  48, 113,  56, 121, 251, 186, 190, 255, 125,  60,
+	239, 174,  44, 109, 105,  40, 170, 235, 162, 227,  97,  32,  36, 101, 231, 166,
+	234, 171,  41, 104, 108,  45, 175, 238, 167, 230, 100,  37,  33,  96, 226, 163,
+	112,  49, 179, 242, 246, 183,  53, 116,  61, 124, 254, 191, 187, 250, 120,  57,
+	159, 222,  92,  29,  25,  88, 218, 155, 210, 147,  17,  80,  84,  21, 151, 214,
+	  5,  68, 198, 135, 131, 194,  64,   1,  72,   9, 139, 202, 206, 143,  13,  76,
+	149, 212,  86,  23,  19,  82, 208, 145, 216, 153,  27,  90,  94,  31, 157, 220,
+	 15,  78, 204, 141, 137, 200,  74,  11,  66,   3, 129, 192, 196, 133,   7,  70,
+	224, 161,  35,  98, 102,  39, 165, 228, 173, 236, 110,  47,  43, 106, 232, 169,
+	122,  59, 185, 248, 252, 189,  63, 126,  55, 118, 244, 181, 177, 240, 114,  51,
+	127,  62, 188, 253, 249, 184,  58, 123,  50, 115, 241, 176, 180, 245, 119,  54,
+	229, 164,  38, 103,  99,  34, 160, 225, 168, 233, 107,  42,  46, 111, 237, 172,
+	 10,  75, 201, 136, 140, 205,  79,  14,  71,   6, 132, 197, 193, 128,   2,  67,
+	144, 209,  83,  18,  22,  87, 213, 148, 221, 156,  30,  95,  91,  26, 152, 217,
+};
+
 static uint32_t crc32_calc(uint32_t crc, uint8_t *buffer, uint32_t length)
 {
 	while (length--)
 		crc = crc32_table[(crc ^ *buffer++) & 0xff] ^ (crc >> 8);
 
 	return crc;
+}
+
+static uint32_t reverse_crc32_calc(uint32_t crc, const uint8_t *buffer, uint32_t length)
+{
+	const uint8_t *data = buffer + length;
+	uint8_t high_byte;
+
+	while (length--)
+	{
+		data--;
+		high_byte = (uint8_t)(crc >> 24);
+		crc ^= crc32_table[high_lookup[high_byte]];
+		crc <<= 8;
+		crc += high_lookup[high_byte] ^ *data;
+	}
+
+	return crc;
+}
+
+static uint32_t calc_span(uint32_t prior_crc, uint32_t post_crc)
+{
+	int index;
+	uint8_t byte;
+	uint32_t span, table;
+
+	for (index = 3; index >= 0; index--)
+	{
+		table = (table << 8) | high_lookup[post_crc >> 24];
+		post_crc = (post_crc ^ crc32_table[table & 0xFF]) << 8;
+	}
+	for (index = 0; index < 4; index++)
+	{
+		byte = (uint8_t)(prior_crc ^ table);
+		prior_crc = (prior_crc >> 8) ^ crc32_table[table & 0xFF];
+		span >>= 8;
+		span |= (uint32_t)byte << 24;
+		table >>= 8;
+	}
+
+	return span;
 }
 
 int main(int argc, char *argv[])
@@ -340,8 +408,10 @@ int main(int argc, char *argv[])
 	Elf32_Phdr *ph;
 	Elf32_Shdr sh;
 	struct memory_blob *blob, *pm_list;
-	uint32_t phy_addr, origin_addr, crc32, stuff_size;
+	uint32_t phy_addr, dfu_crc32, stuff_size, max_offset;
 	uint8_t scratchpad[64 /* sized to be at least as large as the DFU suffix */];
+	uint32_t pre_crc, post_crc, span;
+	uint8_t *binary;
 
 	if (argc < 3)
 	{
@@ -407,7 +477,7 @@ int main(int argc, char *argv[])
 	fclose(elffp);
 
 	/*
-	write blob list to raw file
+	sanity check blob list
 	*/
 
 	blob = pm_list;
@@ -418,12 +488,15 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	origin_addr = 0x400; /* this is the first address available after the bootloader */
-	crc32 = 0xFFFFFFFF;
-
 	if (blob->address < origin_addr)
 	{
 		printf("ERROR: provided ELF intrudes into bootloader space; DFU cannot be created\n");
+		return -1;
+	}
+
+	if (blob->address != origin_addr)
+	{
+		printf("ERROR: provided ELF must start at 0x%x; DFU cannot be created\n", origin_addr);
 		return -1;
 	}
 
@@ -434,26 +507,116 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	blob = pm_list; phy_addr = origin_addr;
+
 	while (blob)
 	{
-		phy_addr = blob->address;
+		stuff_size = blob->address - phy_addr;
 
-		while (origin_addr < phy_addr)
+		if (stuff_size)
 		{
-			memset(scratchpad, 0xFF, sizeof(scratchpad));
-			stuff_size = phy_addr - origin_addr;
-			if (stuff_size > sizeof(scratchpad))
-				stuff_size = sizeof(scratchpad);
-			crc32 = crc32_calc(crc32, scratchpad, stuff_size);
-			fwrite(scratchpad, stuff_size, 1, dfufp);
-			origin_addr += stuff_size;
+			/* there is a gap, so create a blank region here */
+			find_blob(phy_addr, stuff_size, &pm_list);
 		}
 
-		crc32 = crc32_calc(crc32, blob->data, blob->count);
-		fwrite(blob->data, blob->count, 1, dfufp);
-		origin_addr += blob->count;
+		/* figure the best-case starting point of the next blob */
+		phy_addr = blob->address + blob->count;
+
+		/* advance to next blob */
 		blob = blob->next;
 	}
+
+	max_offset = phy_addr - origin_addr;
+
+	/* check if program image ends on a 32-bit boundary */
+	if (phy_addr & 0x3)
+	{
+		stuff_size = 4 - (phy_addr & 0x3);
+		max_offset += stuff_size;
+		/* create blank region at end to pad out to whole 32-bits (as the CRC will require this) */
+		find_blob(phy_addr, stuff_size, &pm_list);
+	}
+
+	/*
+	The upcoming CRC calculations are artificially complicated with using blobs, so we 
+	take the approach of moving all the blobs into a malloc-ed linear region of memory.
+	*/
+
+	binary = malloc(max_offset);
+
+	while (pm_list)
+	{
+		blob = pm_list;
+		memcpy(binary + blob->address - origin_addr, blob->data, blob->count);
+		pm_list = pm_list->next;
+		free(blob);
+	}
+
+	/*
+	as a sanity check, we check what the value is of the vector entry we over-write with the length
+	*/
+
+	stuff_size  = (uint32_t)binary[app_len_offset + 3] << 24;
+	stuff_size |= (uint32_t)binary[app_len_offset + 2] << 16;
+	stuff_size |= (uint32_t)binary[app_len_offset + 1] << 8;
+	stuff_size |= (uint32_t)binary[app_len_offset + 0] << 0;
+
+	if (stuff_size)
+	{
+		printf("WARNING: overwriting 0x%x at 0x%x with length value (%d)\n", stuff_size, origin_addr + app_len_offset, max_offset);
+	}
+
+	/* store app length within application itself */
+	binary[app_len_offset + 0] = (uint8_t)(max_offset >> 0);
+	binary[app_len_offset + 1] = (uint8_t)(max_offset >> 8);
+	binary[app_len_offset + 2] = (uint8_t)(max_offset >> 16);
+	binary[app_len_offset + 3] = (uint8_t)(max_offset >> 24);
+
+	/*
+	perform the calculation to determine what 32-bit value to write 
+	in order to cause the overall CRC32 to calculate to be zero
+	*/
+
+	pre_crc = crc32_calc(0xFFFFFFFF /* starting CRC value */, binary, app_crc_offset);
+	post_crc = reverse_crc32_calc(0 /* desired end value */, binary + app_crc_offset + 4, max_offset - (app_crc_offset + 4));
+	span = calc_span(pre_crc, post_crc);
+
+	/*
+	as a sanity check, we check what the value is of the vector entry we over-write with the CRC32
+	*/
+
+	stuff_size  = (uint32_t)binary[app_crc_offset + 3] << 24;
+	stuff_size |= (uint32_t)binary[app_crc_offset + 2] << 16;
+	stuff_size |= (uint32_t)binary[app_crc_offset + 1] << 8;
+	stuff_size |= (uint32_t)binary[app_crc_offset + 0] << 0;
+
+	if (stuff_size)
+	{
+		printf("WARNING: overwriting 0x%x at 0x%x with CRC value (%d)\n", stuff_size, origin_addr + app_crc_offset, span);
+	}
+
+	/* store app CRC within application itself */
+	binary[app_crc_offset + 0] = (uint8_t)(span >> 0);
+	binary[app_crc_offset + 1] = (uint8_t)(span >> 8);
+	binary[app_crc_offset + 2] = (uint8_t)(span >> 16);
+	binary[app_crc_offset + 3] = (uint8_t)(span >> 24);
+
+	stuff_size = crc32_calc(0xFFFFFFFF, binary, max_offset);
+
+	if (stuff_size)
+	{
+		printf("ERROR: something has gone wrong with the CRC calculation; value was 0x%x\n", stuff_size);
+		return -1;
+	}
+
+	/* start the DFU CRC32 calculation */
+	dfu_crc32 = crc32_calc(0xFFFFFFFF, binary, max_offset);
+
+	/* write the tweaked image into the DFU file */
+	fwrite(binary, max_offset, 1, dfufp);
+
+	/* free remaining malloc-ed memory */
+	free(binary);
 
 	/*
 	append DFU standard suffix
@@ -474,12 +637,12 @@ int main(int argc, char *argv[])
 	scratchpad[i++] = 16; // bLength
 
 	/* the CRC-32 has now been calculated over the entire file, save for the CRC field itself */
-	crc32 = crc32_calc(crc32, scratchpad, i);
+	dfu_crc32 = crc32_calc(dfu_crc32, scratchpad, i);
 
-	scratchpad[i++] = (uint8_t)(crc32 >> 0);
-	scratchpad[i++] = (uint8_t)(crc32 >> 8);
-	scratchpad[i++] = (uint8_t)(crc32 >> 16);
-	scratchpad[i++] = (uint8_t)(crc32 >> 24);
+	scratchpad[i++] = (uint8_t)(dfu_crc32 >> 0);
+	scratchpad[i++] = (uint8_t)(dfu_crc32 >> 8);
+	scratchpad[i++] = (uint8_t)(dfu_crc32 >> 16);
+	scratchpad[i++] = (uint8_t)(dfu_crc32 >> 24);
 
 	fwrite(scratchpad, i, 1, dfufp);
 

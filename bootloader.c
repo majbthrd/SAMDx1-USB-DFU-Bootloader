@@ -242,9 +242,23 @@ void bootloader(void)
   PORT->Group[0].PINCFG[15].reg = PORT_PINCFG_PULLEN | PORT_PINCFG_INEN;
   PORT->Group[0].OUTSET.reg = (1UL << 15);
 
-  if (PORT->Group[0].IN.reg & (1UL << 15))
-    return; /* pin not grounded, so run user app */
+  PAC1->WPCLR.reg = 2; /* clear DSU */
 
+  DSU->ADDR.reg = 0x400; /* start CRC check at beginning of user app */
+  DSU->LENGTH.reg = *(volatile uint32_t *)0x410; /* use length encoded into unused vector address in user app */
+
+  /* ask DSU to compute CRC */
+  DSU->DATA.reg = 0xFFFFFFFF;
+  DSU->CTRL.bit.CRC = 1;
+  while (!DSU->STATUSA.bit.DONE);
+
+  if (!(PORT->Group[0].IN.reg & (1UL << 15)))
+    goto run_bootloader; /* pin grounded, so run bootloader */
+
+  if (0 == DSU->DATA.reg)
+    return; /* CRC passes, so run user app */
+
+run_bootloader:
   /*
   configure oscillator for crystal-free USB operation
   */
