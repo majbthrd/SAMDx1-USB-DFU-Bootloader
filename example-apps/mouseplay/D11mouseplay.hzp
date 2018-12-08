@@ -28,6 +28,7 @@
       gcc_entry_point="Reset_Handler"
       linker_keep_symbols="vectors"
       linker_memory_map_file="$(DeviceMemoryMapFile)"
+      linker_patch_build_command="&quot;$(StudioDir)/bin/crossscript&quot; &quot;load(\&quot;$(ProjectDir)/LinkPatch.js\&quot;);LinkPatch(\&quot;$(TargetPath)\&quot;);&quot;"
       linker_output_format="bin"
       linker_section_placement_file="$(StudioDir)/targets/Cortex_M/flash_placement.xml"
       linker_section_placement_macros="FLASH_START=0x400"
