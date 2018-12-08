@@ -3,19 +3,27 @@ USB DFU Bootloader for SAMD11 / SAMD21
 
 Bootloaders may be a dime a dozen, but existing USB bootloaders for the Atmel/Microchip SAMD11/SAMD21 all seem to be 4kBytes or 8kBytes in size.  To spend 25% or 50% of the SAMD11's flash on the bootloader seems quite excessive.  The SAMD21 may have more flash to spare than the SAMD11, but why be so wasteful with it?
 
-This USB bootloader is only 1kBytes and implements the industry-standard [DFU protocol](http://www.usb.org/developers/docs/devclass_docs/DFU_1.1.pdf) that is supported under multiple Operating Systems via existing tools such as [dfu-util](http://dfu-util.sourceforge.net/).
+This USB bootloader is only 1kBytes and implements the industry-standard [DFU protocol](http://www.usb.org/developers/docs/devclass_docs/DFU_1.1.pdf) that is supported under multiple Operating Systems via existing tools such as [dfu-util](http://dfu-util.sourceforge.net/) and [webdfu](https://github.com/devanlai/webdfu).
 
 It is a much more space efficient alternative to the 4kB Atmel/Microchip [AN_42366](http://www.microchip.com//wwwAppNotes/AppNotes.aspx?appnote=en591491) SAM-BA Bootloader or the positively gluttonous 8kB Arduino Zero bootloaders.
 
+## Features
+
+Despite the small size, it packs a punch.  Unlike other bootloaders whose integrity check consists of merely sampling the first few bytes to see if they are not erased, this bootloader performs a proper CRC32 check of the application before letting it boot.  It also supports the latest trend of detecting a double-tap of RESET to manually invoke the bootloader.
+
 ## Usage
 
-Downloading can be accomplished with any software that supports DFU, which includes the existing [dfu-util](http://dfu-util.sourceforge.net/) utilities.
+Downloading can be accomplished with any software that supports DFU, which includes [dfu-util](http://dfu-util.sourceforge.net/) and [webdfu](https://github.com/devanlai/webdfu).
 
-Using the provided dx1elf2dfu utility, one can create a .dfu file.  The DFU software will accept that file; with [dfu-util](http://dfu-util.sourceforge.net/), downloading is like so:
+Using the provided dx1elf2dfu utility, one can create a .dfu file.  Your DFU software of choice will accept that file.
+
+With [dfu-util](http://dfu-util.sourceforge.net/), downloading is like so:
 
 ```
 dfu-util -D write.dfu
 ```
+
+With [webdfu](https://devanlai.github.io/webdfu/dfu-util/), select the Vendor ID as 0x1209 and click Connect.  Verify the transfer size is 64, and choose the .dfu file.  Click Download, and after the download, click Disconnect.
 
 ## Specifics
 
@@ -23,13 +31,13 @@ Source code for some example apps is provided in the 'example-apps' subdirectory
 
 The linker memory map of the user application must be modified to have an origin at 0x0000_0400 rather than at 0x0000_0000.  This bootloader resides at 0x0000_0000.
 
-When booting, the bootloader checks whether a GPIO pin (nominally PA15) is connected to ground.  It also computes a CRC32 of the user application.  If the user application is unprogrammed or corrupted, the CRC32 check should fall.  If the CRC32 check fails or the GPIO pin is grounded, it runs the bootloader instead of the user application.
+v1.04 features support for detecting a double-tap of a RESET button.  For earlier versions (or by re-enabling legacy behavior in the source code), the bootloader checks at boot whether a GPIO pin (nominally PA15) is connected to ground.  v1.02+ also computes a CRC32 of the user application.  If the user application is unprogrammed or corrupted, the CRC32 check should fail.  If the CRC32 check fails or a user request is detected, it runs the bootloader instead of the user application.
 
 When branching to the user application, the bootloader includes functionality to update the [VTOR (Vector Table Offset Register)](http://infocenter.arm.com/help/topic/com.arm.doc.dui0662a/Ciheijba.html) and update the stack pointer to suit the value in the user application's vector table.
 
 ## Requirements for compiling
 
-[Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) is presently needed to compile this code.  With Crossworks for ARM v4.3.0, using the Clang 7.0.0 compiler produces a 1014 byte image.  The more mainstream GCC does not appear to be optimized enough to produce an image that comes anywhere close to fitting into 1024 bytes.
+[Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) is presently needed to compile this code.  With Crossworks for ARM v4.3.2, compiling v1.03 using the Clang 7.0.0 compiler produces a 1022 byte image.  The more mainstream GCC does not appear to be optimized enough to produce an image that comes anywhere close to fitting into 1024 bytes.
 
 There is no dependency in the code on the [Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) toolchain per se, but at this time I am not aware of any other ready-to-use Clang ARM cross-compiler package that I can readily point users to.
 

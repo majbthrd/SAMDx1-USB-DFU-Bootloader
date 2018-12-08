@@ -45,6 +45,7 @@ NOTES:
 
 /*- Definitions -------------------------------------------------------------*/
 #define USB_CMD(dir, rcpt, type) ((USB_##dir##_TRANSFER << 7) | (USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
+#define SIMPLE_USB_CMD(rcpt, type) ((USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
 
 /*- Types -------------------------------------------------------------------*/
 typedef struct
@@ -148,9 +149,18 @@ static void USB_Service(void)
     uint16_t length = request->wLength;
     static uint32_t *dfu_status = dfu_status_choices + 0;
 
-    switch (request->bmRequestType)
+    /* for these other USB requests, we must examine all fields in bmRequestType */
+    if (USB_CMD(OUT, INTERFACE, STANDARD) == request->bmRequestType)
     {
-    case USB_CMD(IN, DEVICE, STANDARD):
+      udc_control_send_zlp();
+      return;
+    }
+
+    /* for these "simple" USB requests, we can ignore the direction and use only bRequest */
+    switch (request->bmRequestType & 0x7F)
+    {
+    case SIMPLE_USB_CMD(DEVICE, STANDARD):
+    case SIMPLE_USB_CMD(INTERFACE, STANDARD):
       switch (request->bRequest)
       {
         case USB_GET_DESCRIPTOR:
@@ -177,11 +187,6 @@ static void USB_Service(void)
         case USB_CLEAR_FEATURE:
           USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.bit.STALLRQ1 = 1;
           break;
-      }
-      break;
-    case USB_CMD(OUT, DEVICE, STANDARD):
-      switch (request->bRequest)
-      {
         case USB_SET_ADDRESS:
           udc_control_send_zlp();
           USB->DEVICE.DADD.reg = USB_DEVICE_DADD_ADDEN | USB_DEVICE_DADD_DADD(request->wValue);
@@ -192,18 +197,7 @@ static void USB_Service(void)
           break;
       }
       break;
-    case USB_CMD(IN, INTERFACE, STANDARD):
-      switch (request->bRequest)
-      {
-        case USB_GET_STATUS:
-          udc_control_send(dfu_status_choices + 0, 2); /* a 32-bit aligned zero in RAM is all we need */
-          break;
-      }
-      break;
-    case USB_CMD(OUT, INTERFACE, STANDARD):
-      udc_control_send_zlp();
-      break;
-    case USB_CMD(IN, INTERFACE, CLASS):
+    case SIMPLE_USB_CMD(INTERFACE, CLASS):
       switch (request->bRequest)
       {
         case 0x03: // DFU_GETSTATUS
@@ -212,35 +206,36 @@ static void USB_Service(void)
         case 0x05: // DFU_GETSTATE
           udc_control_send(&dfu_status[1], 1);
           break;
+        case 0x01: // DFU_DNLOAD
+          dfu_status = dfu_status_choices + 0;
+          if (request->wLength)
+          {
+            dfu_status = dfu_status_choices + 2;
+            dfu_addr = 0x400 + request->wValue * 64;
+          }
+          /* fall through to below */
         default: // DFU_UPLOAD & others
-          /* no uploads here */
-          udc_control_send_zlp();
+          /* 0x00 == DFU_DETACH, 0x04 == DFU_CLRSTATUS, 0x06 == DFU_ABORT, and 0x01 == DFU_DNLOAD and 0x02 == DFU_UPLOAD */
+          if (!dfu_addr)
+            udc_control_send_zlp();
           break;
       }
-      break;
-    case USB_CMD(OUT, INTERFACE, CLASS):
-      if (0x01 /* DFU_DNLOAD */ == request->bRequest)
-      {
-        dfu_status = dfu_status_choices + 0;
-        if (request->wLength)
-        {
-          dfu_status = dfu_status_choices + 2;
-          dfu_addr = 0x400 + request->wValue * 64;
-        }
-      }
-      /* 0x00 == DFU_DETACH, 0x04 == DFU_CLRSTATUS, 0x06 == DFU_ABORT, and 0x01 == DFU_DNLOAD */
-      if (!dfu_addr)
-        udc_control_send_zlp();
       break;
     }
   }
 }
 
+extern int __RAM_segment_used_end__;
+#define DBL_TAP_PTR (uint32_t *)(&__RAM_segment_used_end__)
+#define DBL_TAP_MAGIC 0xf02669ef
+
 void bootloader(void)
 {
+#ifndef DBL_TAP_MAGIC
   /* configure PA15 (bootloader entry pin used by SAM-BA) as input pull-up */
   PORT->Group[0].PINCFG[15].reg = PORT_PINCFG_PULLEN | PORT_PINCFG_INEN;
   PORT->Group[0].OUTSET.reg = (1UL << 15);
+#endif
 
   PAC1->WPCLR.reg = 2; /* clear DSU */
 
@@ -252,11 +247,32 @@ void bootloader(void)
   DSU->CTRL.bit.CRC = 1;
   while (!DSU->STATUSA.bit.DONE);
 
+  if (DSU->DATA.reg)
+    goto run_bootloader; /* CRC failed, so run bootloader */
+
+#ifndef DBL_TAP_MAGIC
   if (!(PORT->Group[0].IN.reg & (1UL << 15)))
     goto run_bootloader; /* pin grounded, so run bootloader */
 
-  if (0 == DSU->DATA.reg)
-    return; /* CRC passes, so run user app */
+  return; /* we've checked everything and there is no reason to run the bootloader */
+#else
+  if (PM->RCAUSE.reg & PM_RCAUSE_POR)
+    *DBL_TAP_PTR = 0; /* a power up event should never be considered a 'double tap' */
+  
+  if (*DBL_TAP_PTR == DBL_TAP_MAGIC)
+  {
+    /* a 'double tap' has happened, so run bootloader */
+    *DBL_TAP_PTR = 0;
+    goto run_bootloader;
+  }
+
+  /* postpone boot for a short period of time; if a second reset happens during this window, the "magic" value will remain */
+  *DBL_TAP_PTR = DBL_TAP_MAGIC;
+  volatile int wait = 65536; while (wait--);
+  /* however, if execution reaches this point, the window of opportunity has closed and the "magic" disappears  */
+  *DBL_TAP_PTR = 0;
+  return;
+#endif
 
 run_bootloader:
   /*
