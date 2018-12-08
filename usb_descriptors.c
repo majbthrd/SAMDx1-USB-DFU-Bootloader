@@ -45,7 +45,7 @@ usb_device_descriptor_t usb_device_descriptor __attribute__ ((aligned (4))) = /*
   .bMaxPacketSize0        = 64,
   .idVendor               = 0x1209,
   .idProduct              = 0x2003,
-  .bcdDevice              = 0x0102,
+  .bcdDevice              = 0x0103,
 
   .iManufacturer          = USB_STR_ZERO,
   .iProduct               = USB_STR_ZERO,
@@ -77,7 +77,7 @@ usb_configuration_hierarchy_t usb_configuration_hierarchy __attribute__ ((aligne
     .bNumEndpoints       = 0,
     .bInterfaceClass     = 254,
     .bInterfaceSubClass  = 1,
-    .bInterfaceProtocol  = 0,
+    .bInterfaceProtocol  = 2,
     .iInterface          = USB_STR_ZERO,
   },
 
