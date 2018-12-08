@@ -1,23 +1,25 @@
 USB DFU Bootloader for SAMD11 / SAMD21
 ======================================
 
-Bootloaders are a dime a dozen, but existing USB bootloaders for the Atmel/Microchip SAMDx1 all seem to be 4kBytes in size.  To spend 25% of the SAMD11's flash on the bootloader seems quite excessive.
+Bootloaders may be a dime a dozen, but existing USB bootloaders for the Atmel/Microchip SAMD11/SAMD21 all seem to be 4kBytes or 8kBytes in size.  To spend 25% or 50% of the SAMD11's flash on the bootloader seems quite excessive.  The SAMD21 may have more flash to spare than the SAMD11, but why be so wasteful with it?
 
-This bootloader is only 1kBytes and implements the industry-standard [DFU protocol](http://www.usb.org/developers/docs/devclass_docs/DFU_1.1.pdf) that is supported under multiple Operating Systems via existing tools such as [dfu-util](http://dfu-util.sourceforge.net/).
+This USB bootloader is only 1kBytes and implements the industry-standard [DFU protocol](http://www.usb.org/developers/docs/devclass_docs/DFU_1.1.pdf) that is supported under multiple Operating Systems via existing tools such as [dfu-util](http://dfu-util.sourceforge.net/).
 
-It is a much more space efficient alternative to the 4kB Atmel/Microchip [AN_42366](http://www.microchip.com//wwwAppNotes/AppNotes.aspx?appnote=en591491) SAM-BA Bootloader.
+It is a much more space efficient alternative to the 4kB Atmel/Microchip [AN_42366](http://www.microchip.com//wwwAppNotes/AppNotes.aspx?appnote=en591491) SAM-BA Bootloader or the positively gluttonous 8kB Arduino Zero bootloaders.
 
 ## Usage
 
-Downloading can be accomplished with the existing [dfu-util](http://dfu-util.sourceforge.net/) utilities.
+Downloading can be accomplished with any software that supports DFU, which includes the existing [dfu-util](http://dfu-util.sourceforge.net/) utilities.
 
-Using the provided dx1elf2dfu utility, one can create a .dfu file; that file can then be downloaded like so:
+Using the provided dx1elf2dfu utility, one can create a .dfu file.  The DFU software will accept that file; with [dfu-util](http://dfu-util.sourceforge.net/), downloading is like so:
 
 ```
 dfu-util -D write.dfu
 ```
 
 ## Specifics
+
+Source code for some example apps is provided in the 'example-apps' subdirectory.
 
 The linker memory map of the user application must be modified to have an origin at 0x0000_0400 rather than at 0x0000_0000.  This bootloader resides at 0x0000_0000.
 

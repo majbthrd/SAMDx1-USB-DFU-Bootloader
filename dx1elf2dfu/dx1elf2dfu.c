@@ -7,7 +7,7 @@
     and thus expects the input ELF to not use the first 1024 bytes.
 
     The bootloader expects an application length and CRC32 to be stored
-    without the user application (using unused vector table entries).  This 
+    within the user application (using unused vector table entries).  This 
     tool calculates these quantities and inserts them into the output DFU.
 
     Permission is hereby granted, free of charge, to any person obtaining a 
