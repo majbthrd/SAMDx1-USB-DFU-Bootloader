@@ -28,6 +28,7 @@
 
 /*- Includes ----------------------------------------------------------------*/
 #include <stdbool.h>
+#include <stdalign.h>
 #include <string.h>
 #include "utils.h"
 #include "usb.h"
@@ -100,20 +101,22 @@ bool usb_handle_standard_request(usb_request_t *request)
         else if (index < USB_STR_COUNT)
         {
           const char *str = usb_strings[index];
-          int len;
+          int len = strlen(str);
+          int size = len*2 + 2;
+          alignas(4) uint8_t buf[size];
 
-          for (len = 0; *str; len++, str++)
+          buf[0] = size;
+          buf[1] = USB_STRING_DESCRIPTOR;
+
+          for (int i = 0; i < len; i++)
           {
-            usb_string_descriptor_buffer[2 + len*2] = *str;
-            usb_string_descriptor_buffer[3 + len*2] = 0;
+            buf[2 + i*2] = str[i];
+            buf[3 + i*2] = 0;
           }
 
-          usb_string_descriptor_buffer[0] = len*2 + 2;
-          usb_string_descriptor_buffer[1] = USB_STRING_DESCRIPTOR;
+          length = LIMIT(length, size);
 
-          length = LIMIT(length, usb_string_descriptor_buffer[0]);
-
-          usb_control_send(usb_string_descriptor_buffer, length);
+          usb_control_send(buf, length);
         }
         else
         {

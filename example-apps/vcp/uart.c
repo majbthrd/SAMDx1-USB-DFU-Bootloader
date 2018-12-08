@@ -218,7 +218,7 @@ void UART_SERCOM_IRQ_HANDLER(void)
     }
     else
     {
-      UART_SERCOM->USART.DATA.reg = uart_tx_fifo.data[uart_tx_fifo.rd];;
+      UART_SERCOM->USART.DATA.reg = uart_tx_fifo.data[uart_tx_fifo.rd];
       uart_tx_fifo.rd = (uart_tx_fifo.rd + 1) % UART_BUF_SIZE;
     }
   }
