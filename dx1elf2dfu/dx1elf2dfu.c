@@ -456,7 +456,10 @@ int main(int argc, char *argv[])
 	{
 		sh = readSh(i,elffp);
 
-		if ( (sh.sh_type==1) && (sh.sh_flags & 0x6) )
+		if (0 == (sh.sh_flags & 0x6))
+			continue;
+
+		if ( (1 /* SHT_PROGBITS */ == sh.sh_type) || (14 /* SHT_INIT_ARRAY */ == sh.sh_type) || (15 /* SHT_FINI_ARRAY */ == sh.sh_type) || (16 /* SHT_PREINIT_ARRAY */ == sh.sh_type) )
 		{
 			for (j = 0; j < eh.e_phnum; j++)
 			{
