@@ -56,8 +56,13 @@ static unsigned tick_count;
 //-----------------------------------------------------------------------------
 static void sys_init(void)
 {
-  uint32_t coarse, fine;
   uint32_t sn = 0;
+
+#if 1
+  /*
+  configure oscillator for crystal-free USB operation (USBCRM / USB Clock Recovery Mode)
+  */
+  uint32_t coarse, fine;
 
   NVMCTRL->CTRLB.reg = NVMCTRL_CTRLB_CACHEDIS | NVMCTRL_CTRLB_RWS(2);
 
@@ -81,6 +86,45 @@ static void sys_init(void)
   GCLK->GENCTRL.reg = GCLK_GENCTRL_ID(0) | GCLK_GENCTRL_SRC(GCLK_SOURCE_DFLL48M) |
       GCLK_GENCTRL_RUNSTDBY | GCLK_GENCTRL_GENEN;
   while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
+#else
+  /*
+  configure oscillator for operation disciplined by external 32k crystal
+
+  This can only be used on PCBs (such as Arduino Zero derived designs) that have these extra components populated.
+  It *should* be wholly unnecessary to use this instead of the above USBCRM code.
+  However, some problem (Sparkfun?) PCBs experience unreliable USB operation in USBCRM mode.
+  */
+
+  NVMCTRL->CTRLB.reg = NVMCTRL_CTRLB_RWS_DUAL;
+
+  SYSCTRL->XOSC32K.reg = SYSCTRL_XOSC32K_STARTUP( 0x6u ) | SYSCTRL_XOSC32K_XTALEN | SYSCTRL_XOSC32K_EN32K;
+  SYSCTRL->XOSC32K.reg |= SYSCTRL_XOSC32K_ENABLE;
+
+  while (!(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_XOSC32KRDY));
+
+  GCLK->GENDIV.reg = GCLK_GENDIV_ID( 1u /* XOSC32K */ );
+
+  GCLK->GENCTRL.reg = GCLK_GENCTRL_ID( 1u /* XOSC32K */ ) | GCLK_GENCTRL_SRC_XOSC32K | GCLK_GENCTRL_GENEN;
+
+  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID( 0u /* DFLL48M */ ) | GCLK_CLKCTRL_GEN_GCLK1 | GCLK_CLKCTRL_CLKEN;
+
+  while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
+
+  SYSCTRL->DFLLCTRL.reg = 0; // See Errata 9905
+  while (!SYSCTRL->PCLKSR.bit.DFLLRDY);
+
+  SYSCTRL->DFLLMUL.reg = SYSCTRL_DFLLMUL_CSTEP( 31 ) | SYSCTRL_DFLLMUL_FSTEP( 511 ) | SYSCTRL_DFLLMUL_MUL(48000000ul / 32768ul);
+
+  SYSCTRL->DFLLCTRL.reg = SYSCTRL_DFLLCTRL_ENABLE | SYSCTRL_DFLLCTRL_MODE | SYSCTRL_DFLLCTRL_WAITLOCK | SYSCTRL_DFLLCTRL_QLDIS;
+
+  while ( !(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_DFLLLCKC) || !(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_DFLLLCKF) || !(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_DFLLRDY) );
+
+  GCLK->GENDIV.reg = GCLK_GENDIV_ID( 0u /* MAIN */ );
+
+  GCLK->GENCTRL.reg = GCLK_GENCTRL_ID( 0u /* MAIN */ ) | GCLK_GENCTRL_SRC_DFLL48M | GCLK_GENCTRL_IDC | GCLK_GENCTRL_GENEN;
+
+  while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
+#endif
 
   sn ^= *(volatile uint32_t *)0x0080a00c;
   sn ^= *(volatile uint32_t *)0x0080a040;

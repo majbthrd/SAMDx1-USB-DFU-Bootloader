@@ -35,6 +35,15 @@ v1.04 features support for detecting a double-tap of a RESET button.  For earlie
 
 When branching to the user application, the bootloader includes functionality to update the [VTOR (Vector Table Offset Register)](http://infocenter.arm.com/help/topic/com.arm.doc.dui0662a/Ciheijba.html) and update the stack pointer to suit the value in the user application's vector table.
 
+
+## Arduino Zero Boards with Problems
+
+This bootloader normally uses the USBCRM mode of the SAMD11/SAMD21.  In this mode, the part disciplines its own 48MHz RC clock using the USB SOF messages.  The advantage of this is simple: it doesn't require optional external components.
+ 
+Until buying a PCB from Sparkfun, I have had zero issues with USBCRM across several hardware designs.  However, the Sparkfun design (derived from Arduino Zero) uses a 32k external crystal and USB will NOT work reliably on it unless this optional crystal is used as the timing source.  Furthermore, the Arduino Zero bootloader source code depends on a 32k external crystal without any explanation as to why.  There is no verbiage in the datasheet to indicate special requirements for USBCRM.  AT07175 (the SAM-BA app note that served as a basis for the "Arduino Zero" bootloader) makes no special requirements.  There are no errata notes on possible scenarios where USBCRM should not function.
+
+The USBCRM mode should be universal, as it doesn't depend on optional external components.  For that reason, the source code uses this mode by default.  However, the source code now has an "#if 1" that can be changed to "#if 0" to cause the optional external 32k crystal (if populated on your design) to be used instead of USBCRM.
+
 ## Requirements for compiling
 
 [Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) is presently needed to compile this code.  With Crossworks for ARM v4.3.2, compiling v1.03 using the Clang 7.0.0 compiler produces a 1022 byte image.  The more mainstream GCC does not appear to be optimized enough to produce an image that comes anywhere close to fitting into 1024 bytes.
