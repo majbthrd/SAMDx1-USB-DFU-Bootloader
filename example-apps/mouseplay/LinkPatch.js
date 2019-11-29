@@ -1,7 +1,7 @@
 /*
     CrossStudio script to patch a SAM Dx1 ELF to work with this bootloader:
     https://github.com/majbthrd/SAMDx1-USB-DFU-Bootloader
-    Copyright (C) 2018 Peter Lawrence
+    Copyright (C) 2018,2019 Peter Lawrence
 
     The bootloader expects an application length and CRC32 to be stored
     within the user application (using unused vector table entries).  This 
@@ -118,13 +118,25 @@ var high_lookup =
   144, 209,  83,  18,  22,  87, 213, 148, 221, 156,  30,  95,  91,  26, 152, 217,
 ];
 
+/*
+  ElfFile.peekBytes() is PAINFULLY slow when its second arg is large.
+  So, it behooves us to incrementally peekBytes at only small chunks.
+*/
+var chunk_size = 64;
+
 function crc32_calc(crc, address, length)
 {
-  peek = ElfFile.peekBytes(address, length, false, padding_value);
-  
-  for (i = 0; i < length; i++)
+  while (length)
   {
-    crc = crc32_table[(crc ^ peek[i]) & 0xff] ^ (crc >>> 8);
+    chunk = (length > chunk_size) ? chunk_size : length;
+
+    peek = ElfFile.peekBytes(address, chunk, false, padding_value);
+    length -= chunk;
+  
+    for (i = 0; i < chunk; i++)
+    {
+      crc = crc32_table[(crc ^ peek[i]) & 0xff] ^ (crc >>> 8);
+    }
   }
 
   return crc >>> 0;
@@ -132,14 +144,24 @@ function crc32_calc(crc, address, length)
 
 function reverse_crc32_calc(crc, address, length)
 {
-  peek = ElfFile.peekBytes(address, length, false, padding_value);
+  address += length;
 
-  while (length--)
+  while (length)
   {
-    high_byte = (crc >>> 24) & 0xFF;
-    crc ^= crc32_table[high_lookup[high_byte]];
-    crc <<= 8;
-    crc += high_lookup[high_byte] ^ peek[length];
+    chunk = (length > chunk_size) ? chunk_size : length;
+
+    address -= chunk;
+    peek = ElfFile.peekBytes(address, chunk, false, padding_value);
+    length -= chunk;
+
+    while (chunk--)
+    {
+      high_byte = (crc >>> 24) & 0xFF;
+      crc ^= crc32_table[high_lookup[high_byte]];
+      crc <<= 8;
+      crc += high_lookup[high_byte] ^ peek[chunk];
+    }
+
   }
 
   return crc >>> 0;
