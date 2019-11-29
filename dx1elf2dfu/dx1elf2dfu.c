@@ -249,12 +249,13 @@ static struct memory_blob *find_blob(uint32_t address, uint32_t count, struct me
 	}
 
 	addition = malloc(sizeof(struct memory_blob));
-	memset(addition, 0xFF, sizeof(struct memory_blob));
 
 	addition->data = malloc(count);
 	addition->address = address;
 	addition->count = count;
 	addition->next = current;
+
+	memset(addition->data, 0xFF, count); /* use a padding_value of 0xFF */
 
 	if (previous)
 		previous->next = addition;
@@ -564,9 +565,9 @@ int main(int argc, char *argv[])
 	stuff_size |= (uint32_t)binary[app_len_offset + 1] << 8;
 	stuff_size |= (uint32_t)binary[app_len_offset + 0] << 0;
 
-	if (stuff_size)
+	if ( stuff_size && (stuff_size != max_offset) )
 	{
-		printf("WARNING: overwriting 0x%x at 0x%x with length value (%d)\n", stuff_size, origin_addr + app_len_offset, max_offset);
+		printf("WARNING: overwriting 0x%x at 0x%x with length value (0x%x)\n", stuff_size, origin_addr + app_len_offset, max_offset);
 	}
 
 	/* store app length within application itself */
@@ -593,9 +594,9 @@ int main(int argc, char *argv[])
 	stuff_size |= (uint32_t)binary[app_crc_offset + 1] << 8;
 	stuff_size |= (uint32_t)binary[app_crc_offset + 0] << 0;
 
-	if (stuff_size)
+	if ( stuff_size && (stuff_size != span) )
 	{
-		printf("WARNING: overwriting 0x%x at 0x%x with CRC value (%d)\n", stuff_size, origin_addr + app_crc_offset, span);
+		printf("WARNING: overwriting 0x%x at 0x%x with CRC value (0x%x)\n", stuff_size, origin_addr + app_crc_offset, span);
 	}
 
 	/* store app CRC within application itself */
