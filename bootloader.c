@@ -1,8 +1,8 @@
 /*
  * 1kByte USB DFU bootloader for Atmel SAMD11 microcontrollers
  *
- * Copyright (c) 2018, Peter Lawrence
- * Copyright (c) 2016, Alex Taradov <alex@taradov.com>
+ * Copyright (c) 2018-2020, Peter Lawrence
+ * derived from https://github.com/ataradov/vcp Copyright (c) 2016, Alex Taradov <alex@taradov.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@ NOTES:
 #include "usb_descriptors.h"
 
 /*- Definitions -------------------------------------------------------------*/
+#define USE_DBL_TAP /* comment out to use GPIO input for bootloader entry */
 #define USB_CMD(dir, rcpt, type) ((USB_##dir##_TRANSFER << 7) | (USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
 #define SIMPLE_USB_CMD(rcpt, type) ((USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
 
@@ -145,7 +146,6 @@ static void USB_Service(void)
 
     usb_request_t *request = (usb_request_t *)udc_ctrl_out_buf;
     uint8_t type = request->wValue >> 8;
-    uint8_t index = request->wValue & 0xff;
     uint16_t length = request->wLength;
     static uint32_t *dfu_status = dfu_status_choices + 0;
 
@@ -213,7 +213,7 @@ static void USB_Service(void)
             dfu_status = dfu_status_choices + 2;
             dfu_addr = 0x400 + request->wValue * 64;
           }
-          /* fall through to below */
+          /* fall through */
         default: // DFU_UPLOAD & others
           /* 0x00 == DFU_DETACH, 0x04 == DFU_CLRSTATUS, 0x06 == DFU_ABORT, and 0x01 == DFU_DNLOAD and 0x02 == DFU_UPLOAD */
           if (!dfu_addr)
@@ -225,13 +225,15 @@ static void USB_Service(void)
   }
 }
 
-extern int __RAM_segment_used_end__;
-#define DBL_TAP_PTR (uint32_t *)(&__RAM_segment_used_end__)
-#define DBL_TAP_MAGIC 0xf02669ef
+#ifdef USE_DBL_TAP
+  extern int __RAM_segment_used_end__;
+  static volatile uint32_t *DBL_TAP_PTR = (volatile uint32_t *)(&__RAM_segment_used_end__);
+  #define DBL_TAP_MAGIC 0xf02669ef
+#endif
 
 void bootloader(void)
 {
-#ifndef DBL_TAP_MAGIC
+#ifndef USE_DBL_TAP
   /* configure PA15 (bootloader entry pin used by SAM-BA) as input pull-up */
   PORT->Group[0].PINCFG[15].reg = PORT_PINCFG_PULLEN | PORT_PINCFG_INEN;
   PORT->Group[0].OUTSET.reg = (1UL << 15);
@@ -250,7 +252,7 @@ void bootloader(void)
   if (DSU->DATA.reg)
     goto run_bootloader; /* CRC failed, so run bootloader */
 
-#ifndef DBL_TAP_MAGIC
+#ifndef USE_DBL_TAP
   if (!(PORT->Group[0].IN.reg & (1UL << 15)))
     goto run_bootloader; /* pin grounded, so run bootloader */
 

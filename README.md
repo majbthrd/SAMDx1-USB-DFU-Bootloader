@@ -46,9 +46,16 @@ The USBCRM mode should be universal, as it doesn't depend on optional external c
 
 ## Requirements for compiling
 
-[Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) is presently needed to compile this code.  With Crossworks for ARM v4.3.2, compiling v1.03 using the Clang 7.0.0 compiler produces a 1022 byte image.  The more mainstream GCC does not appear to be optimized enough to produce an image that comes anywhere close to fitting into 1024 bytes.
+Pre-compiled images are already available via this project's Releases tab.
 
-There is no dependency in the code on the [Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) toolchain per se, but at this time I am not aware of any other ready-to-use Clang ARM cross-compiler package that I can readily point users to.
+[Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) is presently suggested to compile this code, as it includes support for Clang; at this time, I am not aware of any other ready-to-use (and multi-OS to boot) Clang ARM cross-compiler package that I can readily point users to.  With Crossworks for ARM v4.6.1, compiling v1.05 using the Clang 9.0.1 compiler produces a 1003 byte image.  The more mainstream GCC lags behind Clang, although more recent GCC versions produce code that is less overweight than in years past.
+
+|bootloader variant|Clang 9.0.1 (-O1) |GNU Arm 2018-q3 (-Os) |GNU Arm 2019-q4 (-Os) |
+|------------------|------------------|----------------------|----------------------|
+| USE_DBL_TAP      | 1003 bytes       | 1044 bytes (too big!)| 1041 bytes (too big!)|
+| GPIO input       | 979 bytes        | 1008 bytes           | 1006 bytes           |
+
+A Makefile supporting GCC is provided, but even if you have the latest GCC, it may not be able to output a version within the 1024 bytes available.  The latest GCC for ARM can be here: [GNU Arm Embedded Toolchain](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm).  Note that if you are adapting the Makefile for use with clang, try replacing the "-Os" argument in CFLAGS with something like "-O1" if the output size is larger than expected.
 
 ## Programming targets with bootloader
 
