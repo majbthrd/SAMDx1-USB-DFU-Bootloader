@@ -132,6 +132,7 @@ function crc32_calc(crc, address, length)
 
     peek = ElfFile.peekBytes(address, chunk, false, padding_value);
     length -= chunk;
+    address += chunk;
   
     for (i = 0; i < chunk; i++)
     {
