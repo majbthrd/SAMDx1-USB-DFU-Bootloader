@@ -226,9 +226,8 @@ static void USB_Service(void)
 }
 
 #ifdef USE_DBL_TAP
-  extern int __RAM_segment_used_end__;
-  static volatile uint32_t *DBL_TAP_PTR = (volatile uint32_t *)(&__RAM_segment_used_end__);
   #define DBL_TAP_MAGIC 0xf02669ef
+  static volatile uint32_t __attribute__((section(".dont_move"))) double_tap;
 #endif
 
 void bootloader(void)
@@ -259,20 +258,20 @@ void bootloader(void)
   return; /* we've checked everything and there is no reason to run the bootloader */
 #else
   if (PM->RCAUSE.reg & PM_RCAUSE_POR)
-    *DBL_TAP_PTR = 0; /* a power up event should never be considered a 'double tap' */
+    double_tap = 0; /* a power up event should never be considered a 'double tap' */
   
-  if (*DBL_TAP_PTR == DBL_TAP_MAGIC)
+  if (double_tap == DBL_TAP_MAGIC)
   {
     /* a 'double tap' has happened, so run bootloader */
-    *DBL_TAP_PTR = 0;
+    double_tap = 0;
     goto run_bootloader;
   }
 
   /* postpone boot for a short period of time; if a second reset happens during this window, the "magic" value will remain */
-  *DBL_TAP_PTR = DBL_TAP_MAGIC;
+  double_tap = DBL_TAP_MAGIC;
   volatile int wait = 65536; while (wait--);
   /* however, if execution reaches this point, the window of opportunity has closed and the "magic" disappears  */
-  *DBL_TAP_PTR = 0;
+  double_tap = 0;
   return;
 #endif
 
