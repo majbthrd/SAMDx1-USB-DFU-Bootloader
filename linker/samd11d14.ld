@@ -67,6 +67,11 @@ SECTIONS
     KEEP(*(.bss.$RESERVED*))
   } > ram
 
+  .dont_move_block (NOLOAD): ALIGN(4)
+  {
+    *(.vectors_ram)
+  }
+
   .data : ALIGN(4)
   {
     FILL(0xff)
