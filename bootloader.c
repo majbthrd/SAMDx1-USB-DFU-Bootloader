@@ -227,7 +227,7 @@ static void USB_Service(void)
 
 #ifdef USE_DBL_TAP
   #define DBL_TAP_MAGIC 0xf02669ef
-  static volatile uint32_t __attribute__((section(".dont_move"))) double_tap;
+  static volatile uint32_t __attribute__((section(".vectors_ram"))) double_tap;
 #endif
 
 void bootloader(void)

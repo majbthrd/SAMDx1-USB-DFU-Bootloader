@@ -69,7 +69,7 @@ SECTIONS
 
   .dont_move_block (NOLOAD): ALIGN(4)
   {
-    *(.dont_move)
+    *(.vectors_ram)
   }
 
   .data : ALIGN(4)
