@@ -45,6 +45,7 @@ NOTES:
 
 /*- Definitions -------------------------------------------------------------*/
 #define USE_DBL_TAP /* comment out to use GPIO input for bootloader entry */
+#define REBOOT_AFTER_DOWNLOAD /* comment out to prevent boot into app after it has been downloaded */
 #define USB_CMD(dir, rcpt, type) ((USB_##dir##_TRANSFER << 7) | (USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
 #define SIMPLE_USB_CMD(rcpt, type) ((USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
 
@@ -210,6 +211,14 @@ static void __attribute__((noinline)) USB_Service(void)
             dfu_status = dfu_status_choices + 2;
             dfu_addr = 0x400 + request->wValue * 64;
           }
+#ifdef REBOOT_AFTER_DOWNLOAD
+          else
+          {
+            /* the download has now finished, so now reboot */
+            WDT->CONFIG.reg = WDT_CONFIG_PER_8 | WDT_CONFIG_WINDOW_8;
+            WDT->CTRL.reg = WDT_CTRL_ENABLE;
+          }
+#endif
           /* fall through */
         default: // DFU_UPLOAD & others
           /* 0x00 == DFU_DETACH, 0x04 == DFU_CLRSTATUS, 0x06 == DFU_ABORT, and 0x01 == DFU_DNLOAD and 0x02 == DFU_UPLOAD */

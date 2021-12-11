@@ -48,12 +48,14 @@ The USBCRM mode should be universal, as it doesn't depend on optional external c
 
 Pre-compiled images are already available via this project's Releases tab.
 
-[Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) is presently suggested to compile this code, as it includes support for Clang; at this time, I am not aware of any other ready-to-use (and multi-OS to boot) Clang ARM cross-compiler package that I can readily point users to.  With Crossworks for ARM v4.8.1, compiling v1.06 using the Clang 11.1.0 compiler produces a 995 byte image.  The more mainstream GCC lags behind Clang, although more recent GCC versions produce code that is less overweight than in years past.
+[Rowley Crossworks for ARM](http://www.rowley.co.uk/arm/) is suggested to compile this code, as it includes support for Clang; at this time, I am not aware of any other ready-to-use (and multi-OS to boot) Clang ARM cross-compiler package that I can readily point users to.  The more mainstream GCC lags behind Clang, although more recent GCC versions produce code that is less overweight than in years past.
 
-|bootloader variant|Clang 9.0.1 (-O1) |Clang 11.1.0 (-O1) |GNU Arm 2018-q3 (-Os) |GNU Arm 2019-q4 (-Os) |
-|------------------|------------------|-------------------|----------------------|----------------------|
-| USE_DBL_TAP      | 1003 bytes       | 995 bytes         | 1044 bytes (too big!)| 1041 bytes (too big!)|
-| GPIO input       | 979 bytes        | 975 bytes         | 1008 bytes           | 1006 bytes           |
+|bootloader variant                 |Clang 11.1.0 (-O1) |Clang 13.0.0 (-O1) |GNU Arm 2019-q4 (-Os)   |
+|-----------------------------------|-------------------|-------------------|------------------------|
+| USE_DBL_TAP+REBOOT_AFTER_DOWNLOAD | 999 bytes         | 999 bytes         | 1024 bytes (just fits!)|
+| USE_DBL_TAP                       | 983 bytes         | 983 bytes         | 1012 bytes             |
+| GPIO input+REBOOT_AFTER_DOWNLOAD  | 979 bytes         | 979 bytes         | 996 bytes              |
+| GPIO input                        | 963 bytes         | 963 bytes         | 984 bytes              |
 
 A Makefile supporting GCC is provided, but even if you have the latest GCC, it may not be able to output a version within the 1024 bytes available.  The latest GCC for ARM can be here: [GNU Arm Embedded Toolchain](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm).  Note that if you are adapting the Makefile for use with clang, try replacing the "-Os" argument in CFLAGS with something like "-O1" if the output size is larger than expected.
 
@@ -61,7 +63,7 @@ A Makefile supporting GCC is provided, but even if you have the latest GCC, it m
 
 [OpenOCD](http://openocd.org/) is open-source and freely available.  Given a debug unit interfaced to the target, it will not only program the flash but it also has built-in support for setting the BOOTPROT bits to provide write-protection of the bootloader.
 
-Testing was done with OpenOCD v0.10.0 using both the debug units built-in to the ATSAMD11-XPRO and ATSAMD21-XPRO as well as the [Dapper Miser CMSIS-DAP](https://github.com/majbthrd/DapperMiser) debug unit.
+Testing was done with OpenOCD v0.10.0 using both the debug units built-in to the ATSAMD11-XPRO and ATSAMD21-XPRO as well as the [Dapper Miser CMSIS-DAP](https://github.com/majbthrd/DapperMiser) and [Dapper Mime CMSIS-DAP](https://github.com/majbthrd/DapperMime) debug units.
 
 Your mileage may vary, particularly with earlier releases of OpenOCD.  (The wisdom of the Internet implies earlier versions of OpenOCD had bugs with setting the BOOTPROT bits.)  You don't have to use the BOOTPROT bits, but adding write-protection to the bootloader is generally a desirable attribute.
 
