@@ -70,7 +70,7 @@ static uint32_t udc_ctrl_out_buf[16];
 /*- Implementations ---------------------------------------------------------*/
 
 //-----------------------------------------------------------------------------
-static void udc_control_send(const uint32_t *data, uint32_t size)
+static void __attribute__((noinline)) udc_control_send(const uint32_t *data, uint32_t size)
 {
   /* USB peripheral *only* reads valid data from 32-bit aligned RAM locations */
   udc_mem[0].in.ADDR.reg = (uint32_t)data;
@@ -84,13 +84,13 @@ static void udc_control_send(const uint32_t *data, uint32_t size)
 }
 
 //-----------------------------------------------------------------------------
-static void udc_control_send_zlp(void)
+static void __attribute__((noinline)) udc_control_send_zlp(void)
 {
   udc_control_send(NULL, 0); /* peripheral can't read from NULL address, but size is zero and this value takes less space to compile */
 }
 
 //-----------------------------------------------------------------------------
-static void USB_Service(void)
+static void __attribute__((noinline)) USB_Service(void)
 {
   static uint32_t dfu_addr;
 
