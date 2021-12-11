@@ -99,9 +99,6 @@ static void USB_Service(void)
     USB->DEVICE.INTFLAG.reg = USB_DEVICE_INTFLAG_EORST;
     USB->DEVICE.DADD.reg = USB_DEVICE_DADD_ADDEN;
 
-    for (int ep = 0; ep < USB_EPT_NUM; ep++)
-      USB->DEVICE.DeviceEndpoint[ep].EPCFG.reg = 0;
-
     USB->DEVICE.DeviceEndpoint[0].EPCFG.reg = USB_DEVICE_EPCFG_EPTYPE0(1 /*CONTROL*/) | USB_DEVICE_EPCFG_EPTYPE1(1 /*CONTROL*/);
     USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.bit.BK0RDY = 1;
     USB->DEVICE.DeviceEndpoint[0].EPSTATUSCLR.bit.BK1RDY = 1;
