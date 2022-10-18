@@ -219,7 +219,7 @@ function LinkPatch(filename)
   span = calc_span(pre_crc, post_crc);
 
   /* store app CRC within application itself */
-  ElfFile.pokeUint32(start + 0x14, span);
+  ElfFile.pokeUint32(start + app_crc_offset, span);
 
   /* write the modified data to the original filename */
   ElfFile.save(filename);
