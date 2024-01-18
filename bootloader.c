@@ -79,7 +79,7 @@ static void __attribute__((noinline)) udc_control_send(const uint32_t *data, uin
   udc_mem[0].in.PCKSIZE.reg = USB_DEVICE_PCKSIZE_BYTE_COUNT(size) | USB_DEVICE_PCKSIZE_MULTI_PACKET_SIZE(0) | USB_DEVICE_PCKSIZE_SIZE(3 /*64 Byte*/);
 
   USB->DEVICE.DeviceEndpoint[0].EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_TRCPT1;
-  USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.bit.BK1RDY = 1;
+  USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_BK1RDY;
 
   while (0 == USB->DEVICE.DeviceEndpoint[0].EPINTFLAG.bit.TRCPT1);
 }
@@ -100,17 +100,16 @@ static void __attribute__((noinline)) USB_Service(void)
     USB->DEVICE.INTFLAG.reg = USB_DEVICE_INTFLAG_EORST;
     USB->DEVICE.DADD.reg = USB_DEVICE_DADD_ADDEN;
 
-    USB->DEVICE.DeviceEndpoint[0].EPCFG.reg = USB_DEVICE_EPCFG_EPTYPE0(1 /*CONTROL*/) | USB_DEVICE_EPCFG_EPTYPE1(1 /*CONTROL*/);
-    USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.bit.BK0RDY = 1;
-    USB->DEVICE.DeviceEndpoint[0].EPSTATUSCLR.bit.BK1RDY = 1;
-
     udc_mem[0].in.ADDR.reg = (uint32_t)udc_ctrl_in_buf;
     udc_mem[0].in.PCKSIZE.reg = USB_DEVICE_PCKSIZE_BYTE_COUNT(0) | USB_DEVICE_PCKSIZE_MULTI_PACKET_SIZE(0) | USB_DEVICE_PCKSIZE_SIZE(3 /*64 Byte*/);
 
     udc_mem[0].out.ADDR.reg = (uint32_t)udc_ctrl_out_buf;
     udc_mem[0].out.PCKSIZE.reg = USB_DEVICE_PCKSIZE_BYTE_COUNT(64) | USB_DEVICE_PCKSIZE_MULTI_PACKET_SIZE(0) | USB_DEVICE_PCKSIZE_SIZE(3 /*64 Byte*/);
 
-    USB->DEVICE.DeviceEndpoint[0].EPSTATUSCLR.bit.BK0RDY = 1;
+
+    USB->DEVICE.DeviceEndpoint[0].EPCFG.reg = USB_DEVICE_EPCFG_EPTYPE0(1 /*CONTROL*/) | USB_DEVICE_EPCFG_EPTYPE1(1 /*CONTROL*/);
+    /* Allow SETUP and OUT transactions to be received, but NAK all IN transactions. */
+    USB->DEVICE.DeviceEndpoint[0].EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_BK1RDY | USB_DEVICE_EPSTATUSCLR_BK0RDY;
   }
 
   if (USB->DEVICE.DeviceEndpoint[0].EPINTFLAG.bit.TRCPT0) /* Transmit Complete 0 */
@@ -140,7 +139,7 @@ static void __attribute__((noinline)) USB_Service(void)
   if (USB->DEVICE.DeviceEndpoint[0].EPINTFLAG.bit.RXSTP) /* Received Setup */
   {
     USB->DEVICE.DeviceEndpoint[0].EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_RXSTP;
-    USB->DEVICE.DeviceEndpoint[0].EPSTATUSCLR.bit.BK0RDY = 1;
+    USB->DEVICE.DeviceEndpoint[0].EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSCLR_BK0RDY;
 
     usb_request_t *request = (usb_request_t *)udc_ctrl_out_buf;
     uint8_t type = request->wValue >> 8;
@@ -172,7 +171,7 @@ static void __attribute__((noinline)) USB_Service(void)
           }
           else
           {
-            USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.bit.STALLRQ1 = 1;
+            USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_STALLRQ1;
           }
           break;
         case USB_GET_CONFIGURATION:
@@ -183,7 +182,7 @@ static void __attribute__((noinline)) USB_Service(void)
           break;
         case USB_SET_FEATURE:
         case USB_CLEAR_FEATURE:
-          USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.bit.STALLRQ1 = 1;
+          USB->DEVICE.DeviceEndpoint[0].EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_STALLRQ1;
           break;
         case USB_SET_ADDRESS:
           udc_control_send_zlp();
@@ -251,7 +250,7 @@ void bootloader(void)
 
   /* ask DSU to compute CRC */
   DSU->DATA.reg = 0xFFFFFFFF;
-  DSU->CTRL.bit.CRC = 1;
+  DSU->CTRL.reg = DSU_CTRL_CRC; /* Strobe bits; no need for read-modify-write */
   while (!DSU->STATUSA.bit.DONE);
 
   if (DSU->DATA.reg)
@@ -356,15 +355,14 @@ run_bootloader:
   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_ID(USB_GCLK_ID) | GCLK_CLKCTRL_GEN(0);
 
   USB->DEVICE.CTRLA.reg = USB_CTRLA_SWRST;
-  while (USB->DEVICE.SYNCBUSY.bit.SWRST);
+  while (USB->DEVICE.SYNCBUSY.reg);
 
   USB->DEVICE.PADCAL.reg = USB_PADCAL_TRANSN( NVM_READ_CAL(NVM_USB_TRANSN) ) | USB_PADCAL_TRANSP( NVM_READ_CAL(NVM_USB_TRANSP) ) | USB_PADCAL_TRIM( NVM_READ_CAL(NVM_USB_TRIM) );
 
   USB->DEVICE.DESCADD.reg = (uint32_t)udc_mem;
 
-  USB->DEVICE.CTRLA.reg = USB_CTRLA_MODE_DEVICE | USB_CTRLA_RUNSTDBY;
   USB->DEVICE.CTRLB.reg = USB_DEVICE_CTRLB_SPDCONF_FS;
-  USB->DEVICE.CTRLA.reg |= USB_CTRLA_ENABLE;
+  USB->DEVICE.CTRLA.reg = USB_CTRLA_MODE_DEVICE | USB_CTRLA_RUNSTDBY | USB_CTRLA_ENABLE;
 
   /*
   service USB
