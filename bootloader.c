@@ -285,8 +285,6 @@ run_bootloader:
   /*
   configure oscillator for crystal-free USB operation (USBCRM / USB Clock Recovery Mode)
   */
-  
-  SYSCTRL->OSC8M.bit.PRESC = 0;
 
   SYSCTRL->INTFLAG.reg = SYSCTRL_INTFLAG_BOD33RDY | SYSCTRL_INTFLAG_BOD33DET | SYSCTRL_INTFLAG_DFLLRDY;
 
