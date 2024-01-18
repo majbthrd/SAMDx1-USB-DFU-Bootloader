@@ -295,7 +295,11 @@ run_bootloader:
   SYSCTRL->DFLLCTRL.reg = 0; // See Errata 9905
   while (!SYSCTRL->PCLKSR.bit.DFLLRDY);
 
-  SYSCTRL->DFLLMUL.reg = SYSCTRL_DFLLMUL_MUL(48000);
+  /* This is the same step size used by MPLAB Harmony; seems reasonable since fstep=10 yields a typical settling time
+   * of 200us with an input clock of 32kHz according to datasheet. Presumably we'd divide fstep
+   * by 32 when reducing the input clock to 1kHz, but that would make it zero...
+   */
+  SYSCTRL->DFLLMUL.reg = SYSCTRL_DFLLMUL_MUL(48000) | SYSCTRL_DFLLMUL_CSTEP(1) | SYSCTRL_DFLLMUL_FSTEP(1);
   SYSCTRL->DFLLVAL.reg = SYSCTRL_DFLLVAL_COARSE( NVM_READ_CAL(NVM_DFLL48M_COARSE_CAL) ) | SYSCTRL_DFLLVAL_FINE( NVM_READ_CAL(NVM_DFLL48M_FINE_CAL) );
 
   SYSCTRL->DFLLCTRL.reg = SYSCTRL_DFLLCTRL_ENABLE | SYSCTRL_DFLLCTRL_USBCRM | SYSCTRL_DFLLCTRL_MODE | SYSCTRL_DFLLCTRL_BPLCKC | SYSCTRL_DFLLCTRL_CCDIS | SYSCTRL_DFLLCTRL_STABLE;
