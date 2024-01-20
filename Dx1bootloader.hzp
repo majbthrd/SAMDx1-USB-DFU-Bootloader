@@ -1,5 +1,31 @@
 <!DOCTYPE CrossStudio_Project_File>
 <solution Name="Dx1bootloader" target="8" version="2">
+  <configuration Name="Common" arm_compiler_variant="clang" />
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_omit_frame_pointer="Yes"
+    gcc_optimization_level="None"
+    hidden="Yes" />
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_omit_frame_pointer="Yes"
+    gcc_optimization_level="Level 1"
+    hidden="Yes" />
+  <configuration
+    Name="THUMB"
+    Platform="ARM"
+    arm_instruction_set="Thumb"
+    arm_library_instruction_set="Thumb"
+    c_preprocessor_definitions="__THUMB"
+    hidden="Yes" />
+  <configuration Name="THUMB Debug" inherited_configurations="THUMB;Debug" />
+  <configuration
+    Name="THUMB Release"
+    inherited_configurations="THUMB;Release" />
   <project Name="D11bootloader">
     <configuration
       Name="Common"
@@ -19,14 +45,14 @@
       arm_target_interface_type="SWD"
       arm_target_loader_applicable_loaders="Flash"
       arm_target_loader_default_loader="Flash"
-      c_user_include_directories="$(DeviceIncludePath);$(PackagesDir)/CMSIS_4/CMSIS/Include;$(TargetsDir)/SAM_D/CMSIS/Device/Include;$(ProjectDir)"
+      c_user_include_directories="$(DeviceIncludePath);$(PackagesDir)/CMSIS_5/CMSIS/Core/Include;$(TargetsDir)/SAM_D/CMSIS/Device/Include;$(ProjectDir)"
       debug_initial_breakpoint="bootloader"
       debug_register_definition_file="$(DeviceRegisterDefinitionFile)"
       gcc_entry_point="Reset_Handler"
       linker_memory_map_file="$(DeviceMemoryMapFile)"
       linker_section_placement_file="$(StudioDir)/targets/Cortex_M/flash_placement.xml"
       macros="DeviceIncludePath=$(TargetsDir)/SAM_D/CMSIS/Device/SAMD11/Include;DeviceLoaderFile=$(TargetsDir)/SAM_D/Loader/SAM_D11_Loader.elf;DeviceMemoryMapFile=$(TargetsDir)/SAM_D/XML/ATSAMD11D14AM_MemoryMap.xml;DeviceRegisterDefinitionFile=$(TargetsDir)/SAM_D/XML/ATSAMD11D14AM_Registers.xml;DeviceFamily=SAM D;DeviceSubFamily=SAM D11"
-      package_dependencies="SAM_D"
+      package_dependencies="SAM_D;CMSIS-CORE_V5"
       project_directory=""
       project_type="Executable"
       property_groups_file_path="$(TargetsDir)/SAM_D/XML/property_groups.xml"
@@ -38,40 +64,14 @@
     <configuration
       Name="Flash"
       arm_target_flash_loader_file_path="$(DeviceLoaderFile)" />
+    <configuration Name="Release" linker_output_format="srec" />
     <folder Name="Source Files">
       <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;asm;inc" />
       <file file_name="bootloader.c" />
-      <file file_name="usb_descriptors.c" />
       <file file_name="startup.s" />
+      <file file_name="usb_descriptors.c" />
     </folder>
-    <configuration Name="Release" linker_output_format="srec" />
   </project>
-  <configuration Name="THUMB Debug" inherited_configurations="THUMB;Debug" />
-  <configuration
-    Name="THUMB"
-    Platform="ARM"
-    arm_instruction_set="Thumb"
-    arm_library_instruction_set="Thumb"
-    c_preprocessor_definitions="__THUMB"
-    hidden="Yes" />
-  <configuration
-    Name="Debug"
-    c_preprocessor_definitions="DEBUG"
-    gcc_debugging_level="Level 3"
-    gcc_omit_frame_pointer="Yes"
-    gcc_optimization_level="None"
-    hidden="Yes" />
-  <configuration
-    Name="THUMB Release"
-    inherited_configurations="THUMB;Release" />
-  <configuration
-    Name="Release"
-    c_preprocessor_definitions="NDEBUG"
-    gcc_debugging_level="Level 3"
-    gcc_omit_frame_pointer="Yes"
-    gcc_optimization_level="Level 1"
-    hidden="Yes" />
-  <configuration Name="Common" arm_compiler_variant="clang" />
   <project Name="D21bootloader">
     <configuration
       CMSIS_CORE="Yes"
@@ -112,12 +112,12 @@
     <configuration
       Name="Flash"
       arm_target_flash_loader_file_path="$(DeviceLoaderFile)" />
+    <configuration Name="Release" linker_output_format="srec" />
     <configuration Name="Release" gcc_debugging_level="None" />
     <folder Name="Source Files">
       <file file_name="bootloader.c" />
       <file file_name="startup.s" />
       <file file_name="usb_descriptors.c" />
     </folder>
-    <configuration Name="Release" linker_output_format="srec" />
   </project>
 </solution>
