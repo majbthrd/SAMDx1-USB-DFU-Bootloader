@@ -274,7 +274,20 @@ void bootloader(void)
 
   /* postpone boot for a short period of time; if a second reset happens during this window, the "magic" value will remain */
   double_tap = DBL_TAP_MAGIC;
-  volatile int wait = 65536; while (wait--);
+
+  /* Spinning with a volatile counter forces load/store; asm saves 12 bytes. */
+  register uint32_t delay;
+  __asm__ volatile (
+    "\t.syntax unified\n"
+    "\tMOVS %0, #1\n"
+    "\tLSLS %0, %0, #18\n"
+    "reset_wait_loop:\n"
+    "\tSUBS %0, #1\n"
+    "\tBNE reset_wait_loop\n"
+    : "=l" (delay)
+    :
+    : "cc");
+
   /* however, if execution reaches this point, the window of opportunity has closed and the "magic" disappears  */
   double_tap = 0;
   return;
