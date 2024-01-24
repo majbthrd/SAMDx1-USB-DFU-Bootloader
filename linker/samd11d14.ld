@@ -38,8 +38,9 @@ __STACKSIZE__ = 256;
 
 MEMORY
 {
-  flash (rx) : ORIGIN = 0x00000000, LENGTH = 0x400 /* 1k */
-  ram  (rwx) : ORIGIN = 0x20000000, LENGTH = 0x1000 /* 4k */
+  flash       (rx)  : ORIGIN = 0x00000000, LENGTH = 0x400 /* 1k */
+  ram        (rwx)  : ORIGIN = 0x20000000, LENGTH = 0xff0 /* 4k-16 bytes bootloader info */
+  ram_bl_info (rw)  : ORIGIN = 0x20000ff0, LENGTH = 0x10  /* 16 bytes reserved for bootloader info */
 }
 
 __top_flash = ORIGIN(flash) + LENGTH(flash);
@@ -66,11 +67,6 @@ SECTIONS
   {
     KEEP(*(.bss.$RESERVED*))
   } > ram
-
-  .dont_move_block (NOLOAD): ALIGN(4)
-  {
-    *(.vectors_ram)
-  }
 
   .data : ALIGN(4)
   {
@@ -100,6 +96,11 @@ SECTIONS
     . = ALIGN(MAX(__stack_start__ + __STACKSIZE__, .), 8);
     __stack_end__ = .;
   } > ram
+
+  .bl_info (NOLOAD): ALIGN(4)
+  {
+    *(.bl_info)
+  } > ram_bl_info
 
   __RAM_segment_used_end__ = .;
 }

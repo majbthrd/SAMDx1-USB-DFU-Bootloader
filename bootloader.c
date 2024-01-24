@@ -48,6 +48,7 @@ NOTES:
 #define REBOOT_AFTER_DOWNLOAD /* comment out to prevent boot into app after it has been downloaded */
 #define USB_CMD(dir, rcpt, type) ((USB_##dir##_TRANSFER << 7) | (USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
 #define SIMPLE_USB_CMD(rcpt, type) ((USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
+#define DBL_TAP_MAGIC 0xf02669ef
 
 /*- Types -------------------------------------------------------------------*/
 typedef struct
@@ -55,6 +56,14 @@ typedef struct
     UsbDeviceDescBank  out;
     UsbDeviceDescBank  in;
 } udc_mem_t;
+
+typedef struct
+{
+  uint32_t reserved2;
+  uint32_t reserved1;
+  uint32_t reserved0;
+  uint32_t double_tap_magic;
+} bl_info_t;
 
 /*- Variables ---------------------------------------------------------------*/
 static uint32_t usb_config = 0;
@@ -67,6 +76,8 @@ static uint32_t dfu_status_choices[4] =
 static udc_mem_t udc_mem[USB_EPT_NUM];
 static uint32_t udc_ctrl_in_buf[16];
 static uint32_t udc_ctrl_out_buf[16];
+
+static volatile bl_info_t __attribute__((section(".bl_info"))) bl_info;
 
 /*- Implementations ---------------------------------------------------------*/
 
@@ -230,11 +241,6 @@ static void __attribute__((noinline)) USB_Service(void)
   }
 }
 
-#ifdef USE_DBL_TAP
-  #define DBL_TAP_MAGIC 0xf02669ef
-  static volatile uint32_t __attribute__((section(".vectors_ram"))) double_tap;
-#endif
-
 void bootloader(void)
 {
 #ifndef USE_DBL_TAP
@@ -263,17 +269,17 @@ void bootloader(void)
   return; /* we've checked everything and there is no reason to run the bootloader */
 #else
   if (PM->RCAUSE.reg & PM_RCAUSE_POR)
-    double_tap = 0; /* a power up event should never be considered a 'double tap' */
-  
-  if (double_tap == DBL_TAP_MAGIC)
+    bl_info.double_tap_magic = 0; /* a power up event should never be considered a 'double tap' */
+
+  if (bl_info.double_tap_magic == DBL_TAP_MAGIC)
   {
     /* a 'double tap' has happened, so run bootloader */
-    double_tap = 0;
+    bl_info.double_tap_magic = 0;
     goto run_bootloader;
   }
 
   /* postpone boot for a short period of time; if a second reset happens during this window, the "magic" value will remain */
-  double_tap = DBL_TAP_MAGIC;
+  bl_info.double_tap_magic = DBL_TAP_MAGIC;
 
   /* Spinning with a volatile counter forces load/store; asm saves 12 bytes. */
   register uint32_t delay;
@@ -289,7 +295,7 @@ void bootloader(void)
     : "cc");
 
   /* however, if execution reaches this point, the window of opportunity has closed and the "magic" disappears  */
-  double_tap = 0;
+  bl_info.double_tap_magic = 0;
   return;
 #endif
 
