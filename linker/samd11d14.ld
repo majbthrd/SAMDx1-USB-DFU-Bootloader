@@ -4,6 +4,9 @@ modified from original (which can be found at https://github.com/ataradov/mcu-st
 + entry point of "Reset_Handler" instead of "irq_handler_reset"
 + used Rowley convention of section names (i.e. "data_load" instead of "etext")
 + flash size reduced to 1kByte (since bootloader must fit in this)
++ Add bl_info section at top of RAM
++ Explicitly place init section after vectors to allow addresses to fit into
+  an 8-bit immediate.
 */
 
 /*
@@ -54,6 +57,7 @@ SECTIONS
   {
     FILL(0xff)
     KEEP(*(.vectors))
+    *(.init)
     *(.text*)
     *(.rodata)
     *(.rodata.*)
@@ -78,7 +82,7 @@ SECTIONS
     . = ALIGN(4);
     __data_end__ = .;
   } > ram AT > flash
-
+  /* Keep these sections together; init code assumes __data_end__ == __bss_start__ */
   .bss : ALIGN(4)
   {
     __bss_start__ = .;
