@@ -48,6 +48,7 @@ NOTES:
 #define REBOOT_AFTER_DOWNLOAD /* comment out to prevent boot into app after it has been downloaded */
 #define USB_CMD(dir, rcpt, type) ((USB_##dir##_TRANSFER << 7) | (USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
 #define SIMPLE_USB_CMD(rcpt, type) ((USB_##type##_REQUEST << 5) | (USB_##rcpt##_RECIPIENT << 0))
+static const uint32_t app_origin = 0x400;
 
 /*- Types -------------------------------------------------------------------*/
 typedef struct
@@ -209,7 +210,7 @@ static void __attribute__((noinline)) USB_Service(void)
           if (request->wLength)
           {
             dfu_status = dfu_status_choices + 2;
-            dfu_addr = 0x400 + request->wValue * 64;
+            dfu_addr = app_origin + request->wValue * 64;
           }
 #ifdef REBOOT_AFTER_DOWNLOAD
           else
@@ -236,8 +237,9 @@ static void __attribute__((noinline)) USB_Service(void)
   static volatile uint32_t __attribute__((section(".vectors_ram"))) double_tap;
 #endif
 
-void bootloader(void)
+uint32_t bootloader(void)
 {
+
 #ifndef USE_DBL_TAP
   /* configure PA15 (bootloader entry pin used by SAM-BA) as input pull-up */
   PORT->Group[0].PINCFG[15].reg = PORT_PINCFG_PULLEN | PORT_PINCFG_INEN;
@@ -246,8 +248,8 @@ void bootloader(void)
 
   PAC1->WPCLR.reg = 2; /* clear DSU */
 
-  DSU->ADDR.reg = 0x400; /* start CRC check at beginning of user app */
-  DSU->LENGTH.reg = *(volatile uint32_t *)0x410; /* use length encoded into unused vector address in user app */
+  DSU->ADDR.reg = app_origin; /* start CRC check at beginning of user app */
+  DSU->LENGTH.reg = *(volatile uint32_t *)(app_origin + 0x10); /* use length encoded into unused vector address in user app */
 
   /* ask DSU to compute CRC */
   DSU->DATA.reg = 0xFFFFFFFF;
@@ -261,7 +263,7 @@ void bootloader(void)
   if (!(PORT->Group[0].IN.reg & (1UL << 15)))
     goto run_bootloader; /* pin grounded, so run bootloader */
 
-  return; /* we've checked everything and there is no reason to run the bootloader */
+  return app_origin; /* we've checked everything and there is no reason to run the bootloader */
 #else
   if (PM->RCAUSE.reg & PM_RCAUSE_POR)
     double_tap = 0; /* a power up event should never be considered a 'double tap' */
@@ -278,7 +280,7 @@ void bootloader(void)
   volatile int wait = 65536; while (wait--);
   /* however, if execution reaches this point, the window of opportunity has closed and the "magic" disappears  */
   double_tap = 0;
-  return;
+  return app_origin;
 #endif
 
 run_bootloader:
