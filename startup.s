@@ -68,7 +68,7 @@ Reset_Handler:
 #else
   ldr r7, =load_addresses
 #endif
-  ldm r7!, {r0, r1, r2, r3, r4, r5}
+  ldm r7!, {r0, r1, r2, r3, r4}
 
   /* optimized to assume non-zero sized 'data' section */
 copy_loop:
