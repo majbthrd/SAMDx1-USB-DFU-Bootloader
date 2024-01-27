@@ -89,13 +89,13 @@ zero_loop:
   /* Only r4-r8 saved by callee */
   bl bootloader
 
-  /* if bootloader returns, we proceed to the user app */
+  /* if bootloader returns, we proceed to the user app (origin address now in r0) */
 
   str r5, [r4] /* point VTOR to user app */
-  ldr r0, [r5] /* load stack pointer from user app */
-  msr msp, r0
-  msr psp, r0
-  ldr r0, [r5, #4] /* load reset address from user app */
+  ldr r1, [r0] /* load stack pointer from user app */
+  msr msp, r1
+  msr psp, r1
+  ldr r0, [r0, #4] /* load reset address from user app */
   mov pc, r0
 
 loop:
