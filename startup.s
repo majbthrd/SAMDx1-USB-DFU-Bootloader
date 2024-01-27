@@ -108,4 +108,3 @@ load_addresses:
   .word __data_load_start__
   .word __bss_end__
   .word 0xE000ED08 /* VTOR register address */
-  .word 0x400 /* origin of user app */
