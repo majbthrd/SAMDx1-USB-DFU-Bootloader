@@ -86,7 +86,8 @@ zero_loop:
   cmp r1, r3
   bcc zero_loop
 
-  /* Only r4-r8 saved by callee */
+  /* Only r4-r8 saved by callee. Pass app origin in r0. */
+  MOVS r0, r5
   bl bootloader
 
   /* if bootloader returns, we proceed to the user app */
@@ -108,4 +109,6 @@ load_addresses:
   .word __data_load_start__
   .word __bss_end__
   .word 0xE000ED08 /* VTOR register address */
-  .word 0x400 /* origin of user app */
+.global app_origin
+app_origin:
+  .word APP_ORIGIN /* origin of user app defined in Makefile */
